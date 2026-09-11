@@ -28,6 +28,20 @@ export interface Obra {
   data_prestacao_contas?: string | null;
 }
 
+export interface MedicaoObra {
+  parcela: number;
+  valor: number | null;
+  status: string | null;
+  image_url: string | null;
+  percentual: number | null;
+  data_foto: string | null;
+}
+
+export interface DetalhesObraImagens {
+  imagemPrincipalUrl: string | null;
+  medicoes: MedicaoObra[];
+}
+
 export interface ObraFiltros {
   categoria: string[];
   regiaoTuristica: number[]; // Agora são IDs de regiões
