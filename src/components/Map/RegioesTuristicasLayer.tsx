@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
 import type { Feature, FeatureCollection, Geometry } from 'geojson';
-import type { Layer } from 'leaflet';
+import type { Path } from 'leaflet';
 import { supabase } from '../../lib/supabase';
 import { CORES_REGIOES } from '../../constants/regioes';
 
@@ -27,10 +27,10 @@ export function RegioesTuristicasLayer({ regiaoDestacada, onRegiaoClick }: Regio
   const [regioesData, setRegioesData] = useState<{ id: number; nome: string }[]>([]);
 
   useEffect(() => {
-    // Carregar dados das regiões e municípios usando CSV
+    // Carregar dados das regiões e municípios
     async function carregarDados() {
       try {
-        // Buscar regiões turísticas do Supabase
+        // Buscar regiões turísticas do Supabase (15 regiões)
         const { data: regioes } = await supabase
           .from('regioes')
           .select('id, nome')
@@ -45,27 +45,54 @@ export function RegioesTuristicasLayer({ regiaoDestacada, onRegiaoClick }: Regio
         const csvText = await response.text();
         const lines = csvText.split('\n').slice(1); // Pular cabeçalho
         
-        // Criar mapa nome_municipio -> nome_regiao
+        // Criar conjunto de nomes de regiões válidas (do Supabase)
+        const regioesValidas = new Set(regioes?.map(r => r.nome) || []);
+        
+        // Criar mapeamento de sinônimos de regiões para normalizar nomes do CSV
+        const regiaoSinonimos: Record<string, string> = {
+          'Caminho dos Cânions': 'Caminho dos Canyons', // CSV com acento -> Supabase sem acento
+          'Vale do Contestado': 'Caminhos do Contestado', // Sinônimo conhecido
+        };
+        
+        // Criar mapeamento de normalização de nomes de municípios (CSV -> GeoJSON)
+        const municipioSinonimos: Record<string, string> = {
+          'presidente castello branco': 'presidente castelo branco', // Castello -> Castelo
+        };
+        
+        // Criar mapa nome_municipio -> nome_regiao (apenas para regiões válidas)
         const mapa = new Map<string, string>();
+        
         lines.forEach(line => {
           if (!line.trim()) return;
           
-          // Parsing simples: primeira coluna é região, segunda é município
-          const parts = line.split(',');
-          if (parts.length >= 2) {
-            const regiaoNome = parts[0].trim();
-            const municipioNome = parts[1].trim().toLowerCase();
+          // Parsing CSV - pegar as 2 primeiras colunas
+          const firstComma = line.indexOf(',');
+          const secondComma = line.indexOf(',', firstComma + 1);
+          
+          if (firstComma > 0) {
+            let regiaoNome = line.substring(0, firstComma).trim();
+            let municipioNome = line.substring(firstComma + 1, secondComma > 0 ? secondComma : line.length).trim().toLowerCase();
             
-            if (regiaoNome && municipioNome) {
-              // Usar o nome exato da região do CSV
+            // Normalizar nome da região usando sinônimos
+            if (regiaoSinonimos[regiaoNome]) {
+              regiaoNome = regiaoSinonimos[regiaoNome];
+            }
+            
+            // Normalizar nome do município usando sinônimos
+            if (municipioSinonimos[municipioNome]) {
+              municipioNome = municipioSinonimos[municipioNome];
+            }
+            
+            // Apenas mapear se a região for válida (está no Supabase)
+            if (regiaoNome && municipioNome && regioesValidas.has(regiaoNome)) {
               mapa.set(municipioNome, regiaoNome);
             }
           }
         });
         
+
+        
         setMunicipioRegiaoMap(mapa);
-        console.log('Mapeamento CSV carregado:', mapa.size, 'municípios');
-        console.log('Exemplo de mapeamento:', Array.from(mapa.entries()).slice(0, 5));
       } catch (error) {
         console.error('Erro ao carregar dados de regiões:', error);
       }
@@ -84,7 +111,9 @@ export function RegioesTuristicasLayer({ regiaoDestacada, onRegiaoClick }: Regio
         }
         return resposta.json() as Promise<MunicipiosData>;
       })
-      .then(setDados)
+      .then((dados) => {
+        setDados(dados);
+      })
       .catch((erro: unknown) => {
         if (erro instanceof DOMException && erro.name === 'AbortError') return;
         console.error('Erro ao carregar a camada de municípios:', erro);
@@ -96,12 +125,20 @@ export function RegioesTuristicasLayer({ regiaoDestacada, onRegiaoClick }: Regio
   if (!dados) return null;
 
   function obterNome(feature: MunicipioFeature) {
-    return String(
+    const nome = String(
       feature.properties?.NOME_MUN ??
         feature.properties?.NM_MUN ??
         feature.properties?.NOME ??
         'Município'
     ).trim();
+    
+    // Normalizar nome para corresponder ao CSV (Castelo -> Castello)
+    const normalizacoes: Record<string, string> = {
+      'presidente castelo branco': 'presidente castello branco',
+    };
+    
+    const nomeNormalizado = nome.toLowerCase();
+    return normalizacoes[nomeNormalizado] || nomeNormalizado;
   }
 
   function obterCorMunicipio(nomeMunicipio: string): string {
@@ -116,7 +153,17 @@ export function RegioesTuristicasLayer({ regiaoDestacada, onRegiaoClick }: Regio
     return '#CCCCCC';
   }
 
-  function obterEstilo(feature: MunicipioFeature) {
+  function obterEstilo(feature?: MunicipioFeature) {
+    if (!feature) {
+      return {
+        color: '#CCCCCC',
+        weight: 1,
+        opacity: 0.85,
+        fillColor: '#CCCCCC',
+        fillOpacity: 0.7,
+      };
+    }
+    
     const nome = obterNome(feature);
     const cor = obterCorMunicipio(nome);
     
@@ -129,7 +176,7 @@ export function RegioesTuristicasLayer({ regiaoDestacada, onRegiaoClick }: Regio
     };
   }
 
-  const aoCriarCamada = (feature: MunicipioFeature, layer: Layer) => {
+  const aoCriarCamada = (feature: MunicipioFeature, layer: Path) => {
     const nome = obterNome(feature);
     const regiao = municipioRegiaoMap.get(nome.toLowerCase());
     const corOriginal = obterCorMunicipio(nome);

@@ -10,6 +10,8 @@ interface FilterPanelProps {
   totalResultados: number;
 }
 
+const ANOS_DISPONIVEIS = [2020, 2021, 2022, 2023, 2024, 2025, 2026];
+
 export function FilterPanel({
   filtros,
   onChange,
@@ -119,6 +121,86 @@ export function FilterPanel({
             style={{ width: '50%', padding: '6px 8px', border: '1px solid #ddd', borderRadius: 6 }}
           />
         </div>
+      </FiltroGrupo>
+
+      <FiltroGrupo titulo="Ano">
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {ANOS_DISPONIVEIS.map((ano) => (
+            <button
+              key={ano}
+              onClick={() => onChange({ ...filtros, ano: filtros.ano === ano ? null : ano })}
+              style={{
+                padding: '6px 12px',
+                border: '1px solid #ddd',
+                borderRadius: 6,
+                backgroundColor: filtros.ano === ano ? '#16A085' : '#E8E8E8',
+                color: filtros.ano === ano ? '#fff' : '#666',
+                fontSize: 12,
+                cursor: 'pointer',
+                fontWeight: filtros.ano === ano ? 600 : 400,
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = filtros.ano === ano ? '#138D75' : '#D0D0D0';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = filtros.ano === ano ? '#16A085' : '#E8E8E8';
+              }}
+            >
+              {ano}
+            </button>
+          ))}
+          <button
+            onClick={() => onChange({ ...filtros, ano: null })}
+            style={{
+              padding: '6px 12px',
+              border: '1px solid #ddd',
+              borderRadius: 6,
+              backgroundColor: filtros.ano === null ? '#16A085' : '#E8E8E8',
+              color: filtros.ano === null ? '#fff' : '#666',
+              fontSize: 12,
+              cursor: 'pointer',
+              fontWeight: filtros.ano === null ? 600 : 400,
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = filtros.ano === null ? '#138D75' : '#D0D0D0';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = filtros.ano === null ? '#16A085' : '#E8E8E8';
+            }}
+          >
+            Todos
+          </button>
+        </div>
+        {filtros.ano && (
+          <div
+            style={{
+              marginTop: 6,
+              fontSize: 11,
+              color: '#16A085',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+            }}
+          >
+            Mostrando: {filtros.ano}
+            <button
+              onClick={() => onChange({ ...filtros, ano: null })}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#16A085',
+                cursor: 'pointer',
+                fontSize: 14,
+                padding: 0,
+                fontWeight: 600,
+              }}
+            >
+              ✗
+            </button>
+          </div>
+        )}
       </FiltroGrupo>
 
       <FiltroGrupo titulo="Prazos">

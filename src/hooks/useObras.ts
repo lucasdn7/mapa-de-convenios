@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Obra, ObraFiltros, STATUS_ID_LABELS } from '../types/obra';
+import { Obra, ObraFiltros, STATUS_ID_LABELS, extrairAnoDoProcesso } from '../types/obra';
 
 interface UseObrasResult {
   obras: Obra[];
@@ -59,10 +59,10 @@ export function useObras(filtros: ObraFiltros): UseObrasResult {
           });
         }
 
-        // Buscar processos
+        // Buscar processos com parcelas
         const { data, error } = await supabase
           .from('processes')
-          .select('*');
+          .select('*, total_concedente_value, process_parcels(id, parcel_number, value, payment_date)');
 
         if (!ativo) return;
 
@@ -194,6 +194,14 @@ export function useObras(filtros: ObraFiltros): UseObrasResult {
       // Filtro de contratos assinados
       if (filtros.apenasContratosAssinados && !obra.contrato_assinado) {
         return false;
+      }
+
+      // Filtro de ano (extraído do process_number)
+      if (filtros.ano !== null) {
+        const anoProcesso = extrairAnoDoProcesso(obra.process_number);
+        if (anoProcesso !== filtros.ano) {
+          return false;
+        }
       }
 
       return true;

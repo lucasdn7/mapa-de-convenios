@@ -2,6 +2,15 @@ export type StatusObra = 'planejada' | 'em_andamento' | 'concluida' | 'paralisad
 
 export type TipoPonto = 'obra' | 'evento';
 
+export interface Medicao {
+  parcela: number;
+  valor: number;
+  status: string;
+  image_url: string | null;
+  percentual: number | null;
+  data_foto: string | null;
+}
+
 export interface Obra {
   [key: string]: any; // Permite qualquer propriedade da tabela processes
   id?: number;
@@ -26,6 +35,8 @@ export interface Obra {
   updated_at?: string;
   vigencia_date?: string | null;
   data_prestacao_contas?: string | null;
+  imagem_principal_url?: string | null;
+  medicoes?: Medicao[];
 }
 
 export interface ObraFiltros {
@@ -37,6 +48,7 @@ export interface ObraFiltros {
   valorMax: number | null;
   apenasVencendoEm30Dias: boolean;
   apenasContratosAssinados: boolean;
+  ano: number | null; // Filtro por ano (extraído do process_number)
 }
 
 export const filtrosVazios: ObraFiltros = {
@@ -48,6 +60,7 @@ export const filtrosVazios: ObraFiltros = {
   valorMax: null,
   apenasVencendoEm30Dias: false,
   apenasContratosAssinados: false,
+  ano: null,
 };
 
 // Labels para status_id baseados nos valores encontrados no banco
@@ -75,3 +88,16 @@ export const STATUS_CORES: Record<StatusObra, string> = {
   concluida: '#059669',     // verde
   paralisada: '#DC2626',    // vermelho
 };
+
+// Função auxiliar para extrair o ano do process_number
+export function extrairAnoDoProcesso(processNumber: string | undefined): number | null {
+  if (!processNumber) return null;
+  
+  // O formato é SCC 13204/2024, então pegamos o que está depois da /
+  const match = processNumber.match(/\/(\d{4})$/);
+  if (match) {
+    return parseInt(match[1], 10);
+  }
+  
+  return null;
+}

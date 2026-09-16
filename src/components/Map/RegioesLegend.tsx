@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { CORES_REGIOES } from '../../constants/regioes';
 
 interface RegioesLegendProps {
@@ -9,6 +9,51 @@ interface RegioesLegendProps {
 
 export function RegioesLegend({ regioesData, regiaoSelecionada, onRegiaoClick }: RegioesLegendProps) {
   const [isOpen, setIsOpen] = useState(true);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [hasMoved, setHasMoved] = useState(false);
+  const legendRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    setHasMoved(false);
+    setDragStart({
+      x: e.clientX - position.x,
+      y: e.clientY - position.y,
+    });
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      const newPosition = {
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y,
+      };
+      
+      // Considera movimento se a posição mudou significativamente
+      if (Math.abs(newPosition.x - position.x) > 3 || Math.abs(newPosition.y - position.y) > 3) {
+        setHasMoved(true);
+      }
+      
+      setPosition(newPosition);
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, dragStart, position]);
 
   const regioesOrdenadas = regioesData
     .map(r => r.nome)
@@ -17,10 +62,13 @@ export function RegioesLegend({ regioesData, regiaoSelecionada, onRegiaoClick }:
 
   return (
     <div
+      ref={legendRef}
       style={{
         position: 'absolute',
-        bottom: 16,
-        right: 16,
+        bottom: position.y === 0 ? 16 : 'auto',
+        right: position.x === 0 ? 16 : 'auto',
+        left: position.x !== 0 ? position.x : 'auto',
+        top: position.y !== 0 ? position.y : 'auto',
         background: '#fff',
         borderRadius: 8,
         boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
@@ -28,6 +76,7 @@ export function RegioesLegend({ regioesData, regiaoSelecionada, onRegiaoClick }:
         maxWidth: 280,
         maxHeight: 'calc(100vh - 100px)',
         overflow: 'hidden',
+        cursor: isDragging ? 'grabbing' : 'default',
       }}
     >
       <div
@@ -37,9 +86,13 @@ export function RegioesLegend({ regioesData, regiaoSelecionada, onRegiaoClick }:
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          cursor: 'pointer',
+          cursor: 'grab',
+          userSelect: 'none',
         }}
-        onClick={() => setIsOpen(!isOpen)}
+        onMouseDown={handleMouseDown}
+        onClick={(e) => {
+          if (!hasMoved) setIsOpen(!isOpen);
+        }}
       >
         <span style={{ fontWeight: 600, fontSize: '13px' }}>Regiões Turísticas</span>
         <span style={{ fontSize: '12px' }}>{isOpen ? '▼' : '▶'}</span>
